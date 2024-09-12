@@ -24,7 +24,9 @@ article = {}
 button1 = types.KeyboardButton(text='Создать статью')
 button2 = types.KeyboardButton(text='Просмотреть все статьи')
 button3 = types.KeyboardButton(text='Просмотреть мои статьи')
-welcome_keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2, resize_keyboard=True, ).add(button1, button2, button3)
+button4 = types.KeyboardButton(text='Удалить статью')
+welcome_keyboard = types.ReplyKeyboardMarkup(one_time_keyboard=True, row_width=2, resize_keyboard=True, )
+welcome_keyboard.add(button1, button2, button3, button4)
 
 
 @bot.message_handler(commands=['start'])
@@ -65,8 +67,11 @@ def get_articles(message):
     response = requests.get('http://127.0.0.1:8000/articles/getall')
     if response.status_code == 200:
         response = response.json()
-        for i in response:
-            bot.send_message(message.chat.id, text=f'Статья {i["id"]}\n{i["head"]} \n\n{i["text"]} \n\nАвтор: {i["author"]}')
+        if len(response) != 0:
+            for i in response:
+                bot.send_message(message.chat.id, text=f'Статья {i["id"]}\n{i["head"]} \n\n{i["text"]} \n\nАвтор: {i["author"]}')
+        else:
+            bot.send_message(message.chat.id, text='В боте нет ни одной статьи')
         bot.send_message(message.chat.id, text='Выберите действие', reply_markup=welcome_keyboard)
     else:
         bot.send_message(message.chat.id, text='Ошибка при получении данных.', reply_markup=welcome_keyboard)
@@ -83,9 +88,15 @@ def my_articles(message):
             bot.send_message(message.chat.id, text=f'Статья {i["id"]}\n{i["head"]} \n\n{i["text"]} \n\nАвтор: {i["author"]}', reply_markup=welcome_keyboard)
 
 
-@bot.message_handler(func=lambda message: message.text in ['d'])
+@bot.message_handler(commands= ['delete'])
+@bot.message_handler(func=lambda message: message.text in ['Удалить статью'])
 def delete_article(message):
-    my_articles(message)
+    response = requests.get('http://127.0.0.1:8000/articles/my', params={'author': message.from_user.first_name})
+    if response.status_code == 200:
+        response = response.json()
+        for i in response:
+            bot.send_message(message.chat.id,
+                             text=f'Статья {i["id"]}\n{i["head"]} \n\n{i["text"]} \n\nАвтор: {i["author"]}')
     sent = bot.send_message(message.chat.id, text='Введите номер статьи, которую хотите удалить:')
     bot.register_next_step_handler(sent, delete_article2)
 
@@ -96,7 +107,7 @@ def delete_article2(message):
     params = {"id": id, 'asker': message.from_user.first_name}
     response = requests.delete(url='http://127.0.0.1:8000/articles/delete', json=params)
     if response.status_code == 200:
-        txt = response.text
+        txt = response.text[1:-1]
         bot.send_message(message.chat.id, text=txt, reply_markup=welcome_keyboard)
 
 

@@ -23,81 +23,30 @@ class Article_to_delete(BaseModel):
 
 @app.post("/articles/add")
 async def add_article(article: Article):
-    import sqlite3
-    import dotenv
-    import os
-
-    dotenv.load_dotenv()
-    BAZA = os.getenv('BAZA')
-    conn = sqlite3.connect(BAZA)
-    cur = conn.cursor()
-    cur.execute('CREATE TABLE IF NOT EXISTS articles (id INTEGER PRIMARY KEY AUTOINCREMENT, head TEXT, txt TEXT, author TEXT)')
-    conn.commit()
-    cur.execute('INSERT INTO articles (head, txt, author) VALUES (?, ?, ?)', (article.head, article.text, article.author))
-    conn.commit()
-    cur.close()
-    conn.close()
-
+    from baza_conn import baza_write
+    baza_write(request='INSERT INTO articles (head, txt, author) VALUES (?, ?, ?)',
+               parameters=(article.head, article.text, article.author))
     return {'status': 'ok'}
 
 
 @app.get('/articles/getall')
 async def get_articles() -> list[Article]:
-    import sqlite3
-    import dotenv
-    import os
-
-    dotenv.load_dotenv()
-    BAZA = os.getenv('BAZA')
-    conn = sqlite3.connect(BAZA)
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM articles')
-    articles = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    return [Article(id=i[0], head=i[1], text=i[2], author=i[3]) for i in articles]
+    from baza_conn import baza_readall
+    data = baza_readall(request='SELECT * FROM articles')
+    return [Article(id=i[0], head=i[1], text=i[2], author=i[3]) for i in data]
 
 
 @app.get('/articles/my')
 async def my_articles(author: str) -> list[Article]:
-    import sqlite3
-    import dotenv
-    import os
-
-    dotenv.load_dotenv()
-    BAZA = os.getenv('BAZA')
-    conn = sqlite3.connect(BAZA)
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM articles WHERE author = ?', (author, ))
-    articles = cur.fetchall()
-    cur.close()
-    conn.close()
-
-    return [Article(id=i[0], head=i[1], text=i[2], author=i[3]) for i in articles]
+    from baza_conn import baza_readmy
+    data = baza_readmy(request='SELECT * FROM articles WHERE author = ?', parameters=(author, ))
+    return [Article(id=i[0], head=i[1], text=i[2], author=i[3]) for i in data]
 
 
 @app.delete('/articles/delete')
 async def delete_article(article: Article_to_delete):
-    import sqlite3
-    import dotenv
-    import os
-
-    dotenv.load_dotenv()
-    BAZA = os.getenv('BAZA')
-    conn = sqlite3.connect(BAZA)
-    cur = conn.cursor()
-    cur.execute("select author from articles where id = ?", (article.id, ))
-    author = cur.fetchall()
-    print(author)
-    if author[0][0] == article.asker:
-        cur.execute("DELETE from articles where id = ?", (article.id, ))
-        conn.commit()
-        answer = "Статья удалена"
-    else:
-        answer = 'Вы не можете удалить чужую статью'
-    cur.close()
-    conn.close()
-
-    return answer
+    from baza_conn import baza_delete
+    data = baza_delete(parameters=(article.id, ),
+                       asker=article.asker)
+    return data
 
